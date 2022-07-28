@@ -23,7 +23,7 @@ def generate_card(template_file, pictures_folder, nome, nome_pop, nome_cien, coo
 
     template = Image.open(template_file)
     card_img = ImageDraw.Draw(template)
-    font = ImageFont.truetype("Gidole-Regular.ttf", 40)
+    font = ImageFont.truetype("arial.ttf", 40)
     foto_path = os.path.join(pictures_folder, foto)
     if (not os.path.isfile(foto_path)):
         print(f"ERROR: foto {foto_path} doesn't exist")
