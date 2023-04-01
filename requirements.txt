@@ -1,5 +1,5 @@
 argparse
-python-csv
+python-csv==0.0.10
 pillow
-tk
 utm
+inquirer
