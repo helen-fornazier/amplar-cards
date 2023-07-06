@@ -1,36 +1,87 @@
 #!/bin/env python3
 
-import argparse
 import csv
+import shutil
 import os
+from PIL import Image, ImageFont, ImageDraw
+import textwrap
 import utm
+import inquirer
+from os import listdir
 
-def main(csv_file):
-    f = open('converted.csv', 'w')
-    csv_writer = csv.writer(f)
-    header = ["Unique ID","Parcela","Coordenada Y Lat em GD", "Coordenada X Long em GD", "Coordenada Y UTM em metros", "Coordenada X UTM em metros","Nome popular","Nome cientifico","Altura","CAP","DAP","Foto 1","Foto 2","Foto 3","Foto 4","Foto 5","Foto 6"]
-    csv_writer.writerow(header)
 
-    with open(csv_file) as csvfile:
-        reader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        # ignore the header
-        next(reader)
+def convert_coord_to_utm(lat, long):
+    coord_y_utm, coord_x_utm, _, _ = utm.from_latlon(
+        lat, long) if lat and long else ("", "", "", "")
+    return coord_y_utm, coord_x_utm
 
-        i = 0
+def main():
+    files = listdir('.')
+    csv_files = [f for f in files if f.endswith('.csv')]
+
+    questions = [
+    inquirer.List('csvfile',
+                    message="Selecione o arquivo csv",
+                    choices=csv_files
+                ),
+    inquirer.List('delimiter',
+                    message="Selecione o caracter delimitador do csv",
+                    choices=[",", ";"]
+                ),
+    inquirer.List('quotechar',
+                    message="Selecione o caracter de aspas do csv",
+                    choices=['"', "'"]
+                ),
+    inquirer.List('encoding',
+                    message="Selecione o encoding do arquivo (se o csv foi gerado no windows, deve ser ISO-8859-1)",
+                    choices=["ISO-8859-1", "utf-8"]
+                ),
+    ]
+    q_files = inquirer.prompt(questions)
+
+    f = open(q_files["csvfile"], encoding=q_files["encoding"])
+    reader = csv.reader(f, delimiter=q_files["delimiter"], quotechar=q_files["quotechar"])
+    header = next(reader)
+
+    questions = [
+    inquirer.List('lat',
+                    message="Selecione a coluna da latitude",
+                    choices=header,
+                    default="Latitude"
+                ),
+    inquirer.List('long',
+                    message="Selecione a coluna da latitude",
+                    choices=header,
+                    default="Longitude"
+                ),
+    ]
+
+    q_fields = inquirer.prompt(questions)
+    lat_index = header.index(q_fields["lat"])
+    long_index = header.index(q_fields["long"])
+
+    output_csv="outpuv.csv"
+
+    
+    with open(output_csv, 'w', encoding=q_files["encoding"]) as file_csv:
+        writer = csv.writer(file_csv, delimiter=q_files["delimiter"], quotechar=q_files["quotechar"])
+        writer.writerow(header)
         for row in reader:
-            i += 1
-            # ADD HERE HEADER DEFINITION, the only name that matters is coord
-            (uniq_id, parcela, coord, nome_pop, nome_cien, altura, cap1, cap2, dap1, dap2, foto1, foto2, foto3, foto4, foto5, foto6) = row
-            #print(uniq_id, parcela, coord, nome_pop, nome_cien, altura, cap, dap, foto1, foto2, foto3, foto4, foto5, foto6)
-            coord_y, coord_x = coord.split(", ") if coord else ("", "")
-            coord_y_utm, coord_x_utm, _, _ = utm.from_latlon(float(coord_y), float(coord_x)) if coord_y else ("", "", "", "")
-            new_row = [uniq_id, parcela, coord_y, coord_x, coord_y_utm, coord_x_utm, nome_pop, nome_cien, altura, cap1, cap2, dap1, dap2, foto1, foto2, foto3, foto4, foto5, foto6]
-            csv_writer.writerow(new_row)
-        f.close()
+            lat = row[lat_index]
+            long = row[long_index]
+
+            if lat and long:
+                lat = float(lat.replace(".", ""))/1000000
+                long = float(long.replace(".", ""))/1000000
+                print(lat, long)
+                lat, long = convert_coord_to_utm(lat, long)
+                row[lat_index] = lat
+                row[long_index] = long
+
+            writer.writerow(row)
+
+    f.close()
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--csv", help="CSV file", required=True)
-    args = parser.parse_args()
-
-    main(args.csv)
+    main()
